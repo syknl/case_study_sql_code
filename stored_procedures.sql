@@ -24,7 +24,7 @@ DECLARE
 		ELSIF  i % 5 = 0 then
 		ent := ln;
 		else 
-		ent := to_char(i, '999');
+		ent := trim(to_char(i, '999'));
 		end if;
 	 execute 'insert into ' || table_name || ' values (' || to_char(i, '999') || ', ''' || ent || ''')';
 	END loop;
