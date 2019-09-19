@@ -1,5 +1,7 @@
+-- This is a script for testing stored procedures written in "stored_procedures.sql".
+-- To do the test, execute the scripts in "stored_procedures.sql" and execute all the scripts in this file.
 
--- create expected table
+-- 1. Create expected table using mock names.
 create or replace procedure create_expected_table(in mock_first_name text, in mock_last_name text, in table_name text) 
 language plpgsql as $$
 begin
@@ -12,39 +14,50 @@ begin
 end;
 $$;
 
-call create_expected_table('mock_first_name', 'mock_last_name', 'expected_table');
+call create_expected_table('First', 'Last', 'expected_table');
+call create_expected_table('First', 'Lastt', 'not_expected_table');
 
--- create outcome table with stored procedures using mock names.
-create or replace procedure create_outcome_table(mock_first_name text, mock_last_name text)
+-- 2. Create outcome table with the stored procedures which need to be tested using mock names.
+create or replace procedure create_outcome_table(in mock_first_name text, in mock_last_name text, in table_name text)
 language plpgsql as $$ 
-declare table_name text := 'tested_fizzbuzz_like_table'; 
+declare 
+mock_first_name text := mock_first_name;
+mock_last_name text := mock_last_name;
+table_name text := table_name;
 begin
 call create_table(table_name);
 call fizzbuzz_calc(table_name, mock_first_name, mock_last_name);
-	commit;
 end;
 $$;
 
-call create_outcome_table('mock_first_name', 'mock_last_name');
+call create_outcome_table('First', 'Last', 'outcome_table');
 
--- confirm 
+-- 3. Checking if the table contents are exactly the same.
 create or replace function is_table_as_expected(outcome_table text, expected_table text) 
 returns boolean as $$ declare bool_v boolean;
 begin
-	-- todo: explain what this does
-execute '
-	SELECT CASE WHEN EXISTS (
-		SELECT num, reslt FROM ' || outcome_table || '
-		EXCEPT ALL
-		SELECT num, reslt FROM ' || expected_table || '
+execute 
+	-- Selecting the difference between outcome_table and expected_table,
+	-- and returning true if there is no difference, otherwise false.
+	'select case when exists (
+		select num, reslt from ' || outcome_table || '
+		except all
+		select num, reslt from ' || expected_table || '
 	)
-	THEN CAST(''false'' AS BOOLEAN) 
-	ELSE CAST(''true'' AS BOOLEAN) end;' into
+	then cast(''false'' as boolean) 
+	else cast(''true'' as boolean) end;' into
 	bool_v;
 
 return bool_v;
-end;
-
+end
 $$ language plpgsql;
 
-select is_table_as_expected('tested_fizzbuzz_like_table', 'expected_table');
+-- 4. Returns true if the outcome table is the same as the expected table. 
+
+-- Case when the outcome is the same as expected.
+select is_table_as_expected('outcome_table', 'expected_table');
+	-- Returns true.
+-- Case when the outcome is different from expected.
+select is_table_as_expected('outcome_table', 'not_expected_table');
+	-- Returns false.
+	
